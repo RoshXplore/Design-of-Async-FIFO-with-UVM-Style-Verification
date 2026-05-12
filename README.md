@@ -178,8 +178,6 @@ Forces exact multi-beat bursts into the FIFO boundary to:
 The design was simulated using:
 
 * EDA Playground
-* EPWave
-* ModelSim / QuestaSim
 
 The verification suite successfully passed all tests with:
 
@@ -198,22 +196,13 @@ The verification suite successfully passed all tests with:
 
 ## Waveforms and Logs
 
-### Figure 1
+### Waveforms and Logs
 
-EPWave waveform showing:
+![EPWave Simulation Waveform](./results/Async_FIFO_Sim_waveform.png)
+*Figure 1: EPWave waveform showing independent read and write clocks, data bus transitions, and the behavior of the full and empty flags during concurrent traffic.*
 
-* Independent read/write clocks
-* Data bus transitions
-* Concurrent traffic behavior
-* `full` and `empty` flag activity
-
-### Figure 2
-
-Console output showing:
-
-* Clean scoreboard summary
-* Functional coverage report
-* Final verification statistics
+![Simulation Scoreboard and Coverage Output](./results/Async_FIFO_Sim_result.png)
+*Figure 2: Console output summarizing the clean scoreboard pass and 100% functional coverage metrics across both clock domains.*
 
 ---
 
@@ -223,7 +212,7 @@ Console output showing:
 
 ```bash
 git clone <repository_url>
-cd <repository_name>
+cd Design-of-Async-FIFO-with-UVM-Style-Verification
 ```
 
 ### 2. Compile the Design
