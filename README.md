@@ -211,7 +211,7 @@ The verification suite successfully passed all tests with:
 ### 1. Clone the Repository
 
 ```bash
-git clone <repository_url>
+git clone https://github.com/RoshXplore/Design-of-Async-FIFO-with-UVM-Style-Verification
 cd Design-of-Async-FIFO-with-UVM-Style-Verification
 ```
 
