@@ -45,6 +45,10 @@ To safely manage data crossing between independent clock domains, the design use
 
 ---
 
+## Architecture & Verification Environment
+![SystemVerilog Verification Environment Block Diagram](./results/Async_FIFO_BlockDiagram.png)
+*Figure 1: Block diagram of the SystemVerilog verification environment showing the independent read/write domains, SVA checks, and transaction flow.*
+
 ## Verification Environment
 
 The testbench is built completely from scratch using a custom class-based SystemVerilog environment to rigorously verify the FIFO.
