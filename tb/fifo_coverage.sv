@@ -1,9 +1,9 @@
 class fifo_coverage;
     virtual fifo_if vif;
 
-
+    // =========================================================
     // 1. WRITE DOMAIN COVERAGE
-
+    // =========================================================
     covergroup wr_cg @(posedge vif.wr_clk);
         cp_full: coverpoint vif.full {
             bins not_full = {0};
@@ -15,13 +15,13 @@ class fifo_coverage;
             bins back_to_back = (0 => 1 [* 2:10] => 0); 
         }
         
-        // Track the Burst-into-Wall natively
         cp_wr_en: coverpoint vif.wr_en;
         cx_burst_into_full: cross cp_wr_en, cp_full;
     endgroup
 
+    // =========================================================
     // 2. READ DOMAIN COVERAGE
-
+    // =========================================================
     covergroup rd_cg @(posedge vif.rd_clk);
         cp_empty: coverpoint vif.empty {
             bins not_empty = {0};
@@ -33,9 +33,11 @@ class fifo_coverage;
             bins back_to_back = (0 => 1 [* 2:10] => 0); 
         }
 
-        // Track the Drain-into-Wall natively
         cp_rd_en: coverpoint vif.rd_en;
-        cx_drain_to_empty: cross cp_rd_en, cp_empty;
+        
+        cx_drain_to_empty: cross cp_rd_en, cp_empty {
+            ignore_bins read_while_empty = binsof(cp_empty) intersect {1} && binsof(cp_rd_en) intersect {1};
+        }
     endgroup
 
     function new(virtual fifo_if vif);
