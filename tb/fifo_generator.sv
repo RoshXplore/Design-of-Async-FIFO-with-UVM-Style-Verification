@@ -1,11 +1,11 @@
 class fifo_generator;
     mailbox #(fifo_transaction) wr_mbox;
     mailbox #(fifo_transaction) rd_mbox;
-    
+
     int unsigned num_writes;
     int unsigned num_reads;
     int unsigned total_sent;
-    
+
     bit is_writing;
 
     function new(mailbox #(fifo_transaction) wr_mbox,
@@ -17,18 +17,18 @@ class fifo_generator;
         this.num_writes = num_writes;
         this.num_reads  = num_reads;
         this.total_sent = 0;
-        this.is_writing = 0; 
+        this.is_writing = 0;
     endfunction
 
     task run_writes();
         fifo_transaction txn;
-        is_writing = 1; 
+        is_writing = 1;
         for (int i = 0; i < num_writes; i++) begin
             txn    = new();
             txn.op = fifo_transaction::WRITE;
             if (!txn.randomize() with {op == fifo_transaction::WRITE;})
                 $display("Randomization failed");
-            total_sent += txn.burst_len; 
+            total_sent += txn.burst_len;
             wr_mbox.put(txn);
         end
         is_writing = 0;
@@ -43,13 +43,12 @@ class fifo_generator;
             txn.op        = fifo_transaction::WRITE;
             txn.burst_len = 1;
             txn.wdata     = $urandom();
-            total_sent += txn.burst_len;
+            total_sent   += txn.burst_len;
             wr_mbox.put(txn);
         end
         is_writing = 0;
     endtask
 
-    // FIX: is_writing held high across all bursts and inter-burst delays
     task run_writes_staggered(int num_bursts, int writes_per_burst, int delay_ns);
         fifo_transaction txn;
         is_writing = 1;
@@ -67,15 +66,15 @@ class fifo_generator;
         is_writing = 0;
     endtask
 
-    task run_reads(); 
+    task run_reads();
         fifo_transaction txn;
         int total_read = 0;
-        
-        while (is_writing || (total_read < total_sent)) begin
-            if (total_read >= total_sent) begin
-                #1; 
-                continue; 
-            end
+
+        // Block until all writing is done — total_sent is then final
+        wait(!is_writing && total_sent > 0);
+
+        // Drain exactly total_sent beats
+        while (total_read < total_sent) begin
             txn    = new();
             txn.op = fifo_transaction::READ;
             if (!txn.randomize() with {op == fifo_transaction::READ;})
