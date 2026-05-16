@@ -1,294 +1,250 @@
-# Asynchronous FIFO with SystemVerilog Verification Environment
+# Async FIFO with SystemVerilog Verification Environment
 
-This repository contains the RTL design of an Asynchronous FIFO written in Verilog, along with a complete class-based SystemVerilog verification environment.
+A parameterized **Asynchronous FIFO** written in Verilog with a complete **class-based SystemVerilog verification environment**.
 
-The project handles safe data transfer across two independent clock domains (read and write) and verifies the design against various stress and corner-case scenarios.
+The design safely transfers data across independent read/write clock domains and is verified using randomized, stress, and corner-case test scenarios.
 
----
 
-## Design Overview
-
-The core design is a parameterized Asynchronous FIFO.
-
-### Default Configuration
-
-* **FIFO Depth:** 64
-* **Data Width:** 32 bits
-
-### Key Design Techniques
-
-To safely manage data crossing between independent clock domains, the design uses:
-
-* **Gray Code Pointers**
-
-  * Binary read and write pointers are converted to Gray code before crossing clock domains.
-  * Since only one bit changes at a time, Gray code prevents intermediate invalid states during synchronization.
-
-* **2-Stage Synchronizers**
-
-  * Gray-coded pointers are passed through double flip-flop synchronizers in the destination clock domain.
-  * This mitigates metastability during clock-domain crossing (CDC).
-
-* **Flag Logic**
-
-  * The `empty` flag is evaluated in the read domain by comparing:
-
-    * local read pointer
-    * synchronized write pointer
-
-  * The `full` flag is evaluated in the write domain by comparing:
-
-    * local write pointer
-    * synchronized read pointer
-
-  * Full detection includes wrap-around condition checking.
 
 ---
 
-## Architecture & Verification Environment
-![SystemVerilog Verification Environment Block Diagram](./results/Async_FIFO_BlockDiagram.png)
-*Figure 1: Block diagram of the SystemVerilog verification environment showing the independent read/write domains, SVA checks, and transaction flow.*
+# Design Overview
 
-## Verification Environment
+The core design is a parameterized asynchronous FIFO.
 
-The testbench is built completely from scratch using a custom class-based SystemVerilog environment to rigorously verify the FIFO.
+## Default Configuration
 
-### Verification Architecture
+| Parameter  | Value  |
+| ---------- | ------ |
+| FIFO Depth | 64     |
+| Data Width | 32-bit |
 
-#### Transactions
+## Key Design Techniques
 
-Defines randomized:
+### Gray Code Pointers
+
+Binary read/write pointers are converted into Gray code before crossing clock domains.
+
+Since only one bit changes at a time, Gray coding helps avoid invalid intermediate states during CDC synchronization.
+
+### 2-Stage Synchronizers
+
+Gray-coded pointers pass through double flip-flop synchronizers in the destination clock domain to reduce metastability risk.
+
+### Full & Empty Flag Logic
+
+* `empty` is generated in the read clock domain
+* `full` is generated in the write clock domain
+* Full detection includes wrap-around condition checking
+
+---
+
+# Verification Environment
+
+The verification environment is built completely from scratch using a lightweight UVM-style architecture.
+
+## Verification Components
+
+### Transactions
+
+Randomized transactions include:
 
 * Read operations
 * Write operations
-* Burst lengths
-* Data payloads
+* Burst transfers
+* Data payload generation
 
-#### Drivers & Monitors
+### Drivers & Monitors
 
-Independent components exist for both clock domains.
+Separate driver and monitor components exist for both clock domains.
 
-* **Drivers**
+#### Drivers
 
-  * Generate pin-level activity
-  * Drive DUT interface signals
+* Generate DUT stimulus
+* Drive interface-level signals
 
-* **Monitors**
+#### Monitors
 
-  * Passively observe DUT behavior
-  * Capture bus activity
-  * Forward transactions to:
+* Observe DUT activity passively
+* Capture transactions
+* Forward data to:
 
-    * Reference model
-    * Scoreboard
+  * Reference model
+  * Scoreboard
 
-#### Reference Model
+### Reference Model
 
-A shadow FIFO implemented using a SystemVerilog queue predicts expected DUT behavior.
+A queue-based shadow FIFO acts as the golden reference model.
+
+It:
 
 * Pushes incoming write data
 * Pops expected read data
-* Serves as the golden reference model
+* Predicts expected DUT behavior
 
-#### Scoreboard
+### Scoreboard
 
-Compares:
+The scoreboard compares:
 
 * Expected data from the reference model
-* Actual DUT output data
+* Actual DUT read data
 
-Any mismatch is immediately flagged.
+Any mismatch is flagged immediately.
 
-#### Assertions (SVA)
+### Assertions (SVA)
 
-Protocol-level checks are embedded directly inside the interface using concurrent assertions.
+Concurrent assertions are embedded directly inside the interface to detect protocol violations such as:
 
-The assertions continuously monitor the DUT and immediately flag illegal conditions, including:
+* Writes when FIFO is full
+* Reads when FIFO is empty
 
-* Write attempts immediately after the FIFO flags `full`
-* Read attempts immediately after the FIFO flags `empty`
+This provides cycle-accurate protocol verification alongside functional checking.
 
-This provides cycle-accurate protocol checking alongside functional verification.
+### Functional Coverage
 
-#### Functional Coverage
+Coverage tracks:
 
-Covergroups track:
+* `full` and `empty` behavior
+* Read/write enable activity
+* Burst traffic
+* Cross-coverage scenarios
 
-* `full` flag behavior
-* `empty` flag behavior
-* Read/write enable toggles
-* Burst activity
-* Cross-coverage between flags and traffic conditions
+This ensures:
 
-Coverage ensures:
-
-* Back-to-back bursts are exercised
-* Boundary conditions are verified
-* Concurrent traffic scenarios are hit naturally
+* Boundary conditions are exercised
+* Back-to-back bursts are verified
+* Concurrent traffic scenarios are covered
 
 ---
 
-## Test Scenarios
+# Test Scenarios
 
-The generator runs several directed-random test sequences to stress the FIFO.
+## Sanity Test
 
-### Sanity Test
-
-Basic write and read operations to verify:
+Basic read/write validation to verify:
 
 * FIFO functionality
 * Data integrity
 * Correct ordering
 
-### Stress Test
+## Stress Test
 
 * Completely fills the FIFO
 * Completely drains the FIFO
-* Verifies correct full/empty transitions
+* Verifies proper `full` and `empty` transitions
 
-### Concurrent Traffic Test
+## Concurrent Traffic Test
 
-Simultaneous randomized:
+Randomized simultaneous:
 
 * Read bursts
 * Write bursts
 
-Used to validate CDC robustness under heavy activity.
+Used to validate CDC robustness under heavy traffic.
 
-### Starvation / Slow Write Test
+## Starvation / Slow Write Test
 
 * Delayed writes with continuous reads
 * Verifies:
 
   * Empty flag stability
-  * Underflow handling behavior
+  * Underflow handling
 
-### Burst into Full Wall Test
+## Burst Into Full-Wall Test
 
-Forces exact multi-beat bursts into the FIFO boundary to:
+Targets FIFO boundary conditions by intentionally driving bursts into the full condition.
 
-* Intentionally hit the 64-depth wall
-* Verify:
+Checks:
 
-  * Proper `full` assertion
-  * No dropped data
-  * No corruption
-  * Assertion correctness under saturation
+* Correct `full` assertion
+* No data corruption
+* No dropped transactions
+* Assertion correctness under saturation
 
 ---
 
-## Simulation and Results
+# Simulation Results
 
-The design was simulated using:
+Simulated using:
 
 * EDA Playground
+* QuestaSim / ModelSim compatible flow
 
-The verification suite successfully passed all tests with:
-
-* Zero mismatches
-* Zero assertion violations
-
-### Final Results
+## Final Results
 
 | Metric                | Result                |
 | --------------------- | --------------------- |
-| Transactions Checked  | **442 PASS / 0 FAIL** |
-| Write Domain Coverage | **100.0%**            |
-| Read Domain Coverage  | **100.0%**            |
+| Transactions Checked  | **820 PASS / 0 FAIL** |
+| Write Domain Coverage | **100%**              |
+| Read Domain Coverage  | **100%**              |
+| Assertion Violations  | **0**                 |
 
 ---
 
-## Waveforms and Logs
+# Running the Project
 
-### Waveforms and Logs
-
-![EPWave Simulation Waveform](./results/Async_FIFO_Sim_waveform.png)
-*Figure 1: EPWave waveform showing independent read and write clocks, data bus transitions, and the behavior of the full and empty flags during concurrent traffic.*
-
-![Simulation Scoreboard and Coverage Output](./results/Async_FIFO_Sim_result.png)
-*Figure 2: Console output summarizing the clean scoreboard pass and 100% functional coverage metrics across both clock domains.*
-
----
-
-## How to Run
-
-### 1. Clone the Repository
+## 1. Clone the Repository
 
 ```bash
 git clone https://github.com/RoshXplore/Design-of-Async-FIFO-with-UVM-Style-Verification
 cd Design-of-Async-FIFO-with-UVM-Style-Verification
 ```
 
-### 2. Compile the Design
-
-Load the following files into your simulator:
-
-```text
-async_fifo.sv
-tb_top.sv
-```
-
-Supported simulators:
-
-* QuestaSim
-* ModelSim
-* EDA Playground
-
-### 3. Enable SystemVerilog + SVA Support
-
-Ensure your simulator is configured with:
-
-* SystemVerilog enabled
-* SVA (SystemVerilog Assertions) enabled
-
-Example:
+## 2. Compile
 
 ```bash
 vlog -sv async_fifo.sv tb_top.sv
 ```
 
-### 4. Run the Simulation
+## 3. Run Simulation
 
 ```bash
 vsim tb_top
 run -all
 ```
 
-The environment is fully self-checking and automatically prints:
+The testbench is fully self-checking and automatically reports:
 
 * Pass/fail summary
 * Assertion status
-* Coverage report
-* Final scoreboard statistics
-
-at the end of simulation.
+* Coverage statistics
+* Final scoreboard report
 
 ---
 
-## Features Summary
+# Supported Simulators
+
+* QuestaSim
+* ModelSim
+* Riviera-PRO
+* EDA Playground
+
+---
+
+# Features
 
 * Parameterized asynchronous FIFO
 * Independent read/write clock domains
 * Gray-code CDC synchronization
-* 2-stage pointer synchronizers
-* Custom class-based SV verification environment
-* Concurrent SVA protocol checking
-* Reference model + scoreboard architecture
+* 2-stage synchronizers
+* Class-based SV verification environment
+* Concurrent SVA protocol checks
+* Reference model + scoreboard
 * Functional coverage-driven verification
 * Directed-random stress testing
-* Concurrent burst traffic verification
-* 100% functional coverage achieved
+* Concurrent burst verification
+* 100% functional coverage
 
 ---
 
-## Future Improvements
+# Future Improvements
 
-Potential future extensions include:
+Possible future extensions:
 
-* Formal verification
 * UVM migration
-* Configurable almost-full / almost-empty flags
-* AXI-Stream interface wrapper
+* Formal verification
+* Almost-full / almost-empty flags
+* AXI-Stream wrapper
 * Randomized clock ratio testing
 * Error injection testing
 * CDC static analysis integration
